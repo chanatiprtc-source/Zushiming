@@ -1,143 +1,74 @@
--- ==========================================
---  ANIME DICE AUTOMATION SCRIPT TEMPLATE
--- ==========================================
-
+-- บริการระบบ
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+
 local LocalPlayer = Players.LocalPlayer
+local isRunning = false
 
--- อ้างอิงจุดเก็บ Remote (ปรับชื่อตามจริงในเกม เช่น Events, Remotes หรือ Packages)
-local Remotes = ReplicatedStorage:WaitForChild("Remotes", 5) or ReplicatedStorage
+-- Remote สำหรับเก็บเงิน
+local collectRemote = ReplicatedStorage:WaitForChild("Network")
+    :WaitForChild("PlotService")
+    :WaitForChild("RE")
+    :WaitForChild("CollectBalance")
 
--- ================= CONFIGURATION =================
-local Settings = {
-    -- 1. เก็บเงินอัตโนมัติ
-    AutoCollectCoins = true,
-    
-    -- 2. สุ่มตัวอัตโนมัติ
-    AutoRoll = true,
-    DiceName = "NormalDice", -- ชนิดลูกเต๋าหรือกล่องที่ต้องการสุ่ม
-    
-    -- 2.1 เลือกตัวที่จะขายอัตโนมัติ (ใส่ชื่อตัวละครหรือ Rarity ที่ต้องการลบ/ขาย)
-    AutoSell = true,
-    SellList = {
-        ["Common"] = true,
-        ["Uncommon"] = true,
-        ["Rare"] = false, -- ไม่ขายตัว Rare
-    },
-    
-    -- 3 & 3.1 อัพเลเวลตัวละครอัตโนมัติ (กำหนดเลเวลเป้าหมาย 1 - 60)
-    AutoUpgrade = true,
-    TargetLevel = 60, -- เลเวลเป้าหมาย (ตั้งแต่ 1 ถึง 60)
-    
-    -- 4. Rebirth อัตโนมัติ
-    AutoRebirth = true,
-    
-    -- 5. สวมใส่/วางตัวที่ดีที่สุดอัตโนมัติ
-    AutoEquipBest = true,
-}
+-- ลบ UI เก่าออกหากมีการรันซ้ำ
+local GUI_NAME = "AnimeDice_CollectorUI"
+if CoreGui:FindFirstChild(GUI_NAME) then
+    CoreGui[GUI_NAME]:Destroy()
+end
 
--- ================= FUNCTIONS =================
+-- สร้าง ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = GUI_NAME
+screenGui.ResetOnSpawn = false
 
--- 1. ลูปเก็บเงิน (ทั้งแบบยิง Remote และแบบเดินเก็บ Drops)
-task.spawn(function()
-    while task.wait(0.5) do
-        if Settings.AutoCollectCoins then
-            pcall(function()
-                -- แบบที่ 1: เรียกผ่าน Remote (ถ้ามี)
-                if Remotes:FindFirstChild("CollectCoin") then
-                    Remotes.CollectCoin:FireServer()
-                end
-
-                -- แบบที่ 2: วิ่งเก็บเหรียญที่ตกบนพื้นใน Workspace
-                local dropsFolder = workspace:FindFirstChild("Drops") or workspace:FindFirstChild("Coins")
-                if dropsFolder and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    for _, drop in ipairs(dropsFolder:GetChildren()) do
-                        if drop:IsA("BasePart") then
-                            firetouchinterest(LocalPlayer.Character.HumanoidRootPart, drop, 0)
-                            firetouchinterest(LocalPlayer.Character.HumanoidRootPart, drop, 1)
-                        end
-                    end
-                end
-            end)
-        end
-    end
+-- ตรวจสอบสิทธิ์การเข้าถึง CoreGui
+local success = pcall(function()
+    screenGui.Parent = CoreGui
 end)
+if not success or not screenGui.Parent then
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
 
--- 2 & 2.1 สุ่มเต๋า และ จัดการขายตัวอัตโนมัติ
-task.spawn(function()
-    while task.wait(0.2) do
-        if Settings.AutoRoll then
-            pcall(function()
-                -- ยิง Remote สำหรับทอยลูกเต๋า
-                if Remotes:FindFirstChild("RollDice") then
-                    Remotes.RollDice:FireServer(Settings.DiceName)
-                end
-            end)
-        end
+-- สร้างปุ่ม Toggle
+local button = Instance.new("TextButton")
+button.Name = "ToggleBtn"
+button.Size = UDim2.new(0, 160, 0, 45)
+button.Position = UDim2.new(0.05, 0, 0.45, 0)
+button.BackgroundColor3 = Color3.fromRGB(220, 53, 69) -- สีแดง
+button.Text = "Auto Collect: OFF"
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Font = Enum.Font.GothamBold
+button.TextSize = 14
+button.Active = true
+button.Draggable = true
+button.Parent = screenGui
 
-        if Settings.AutoSell then
-            pcall(function()
-                -- ค้นหาตัวละครในกระเป๋า (Inventory)
-                local inventory = LocalPlayer:FindFirstChild("Inventory") or LocalPlayer:FindFirstChild("Units")
-                if inventory and Remotes:FindFirstChild("SellUnit") then
-                    for _, unit in ipairs(inventory:GetChildren()) do
-                        local rarity = unit:FindFirstChild("Rarity") and unit.Rarity.Value or unit.Name
-                        if Settings.SellList[rarity] then
-                            Remotes.SellUnit:FireServer(unit)
-                        end
-                    end
-                end
-            end)
-        end
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = button
+
+-- ลูปการทำงานเบื้องหลัง
+local function startLoop()
+    while isRunning do
+        pcall(function()
+            collectRemote:FireServer(1)
+        end)
+        task.wait(0.5) -- หน่วงเวลา 0.5 วินาที
     end
-end)
+end
 
--- 3 & 3.1 อัพเลเวลตัวละคร (1 - 60)
-task.spawn(function()
-    while task.wait(1) do
-        if Settings.AutoUpgrade then
-            pcall(function()
-                local unitsFolder = LocalPlayer:FindFirstChild("EquippedUnits") or LocalPlayer:FindFirstChild("Inventory")
-                if unitsFolder and Remotes:FindFirstChild("UpgradeUnit") then
-                    for _, unit in ipairs(unitsFolder:GetChildren()) do
-                        local currentLevel = unit:FindFirstChild("Level") and unit.Level.Value or 1
-                        
-                        -- ตรวจสอบว่าเลเวลยังไม่ถึงเป้าหมาย (1-60)
-                        if currentLevel < Settings.TargetLevel and Settings.TargetLevel <= 60 then
-                            Remotes.UpgradeUnit:FireServer(unit)
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
+-- ดักจับการกดปุ่ม
+button.MouseButton1Click:Connect(function()
+    isRunning = not isRunning
 
--- 4. Rebirth อัตโนมัติ
-task.spawn(function()
-    while task.wait(2) do
-        if Settings.AutoRebirth then
-            pcall(function()
-                if Remotes:FindFirstChild("Rebirth") then
-                    Remotes.Rebirth:FireServer()
-                elseif Remotes:FindFirstChild("DoRebirth") then
-                    Remotes.DoRebirth:FireServer()
-                end
-            end)
-        end
-    end
-end)
-
--- 5. สวมใส่ตัวที่ดีที่สุดอัตโนมัติ (Equip Best)
-task.spawn(function()
-    while task.wait(3) do
-        if Settings.AutoEquipBest then
-            pcall(function()
-                if Remotes:FindFirstChild("EquipBest") then
-                    Remotes.EquipBest:FireServer()
-                end
-            end)
-        end
+    if isRunning then
+        button.Text = "Auto Collect: ON"
+        button.BackgroundColor3 = Color3.fromRGB(40, 167, 69) -- สีเขียว
+        task.spawn(startLoop)
+    else
+        button.Text = "Auto Collect: OFF"
+        button.BackgroundColor3 = Color3.fromRGB(220, 53, 69) -- สีแดง
     end
 end)
