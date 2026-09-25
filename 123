@@ -23,52 +23,128 @@ local screenGui = Instance.new("ScreenGui")
 screenGui.Name = GUI_NAME
 screenGui.ResetOnSpawn = false
 
--- ตรวจสอบสิทธิ์การเข้าถึง CoreGui
-local success = pcall(function()
+pcall(function()
     screenGui.Parent = CoreGui
 end)
-if not success or not screenGui.Parent then
+if not screenGui.Parent then
     screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- สร้างปุ่ม Toggle
-local button = Instance.new("TextButton")
-button.Name = "ToggleBtn"
-button.Size = UDim2.new(0, 160, 0, 45)
-button.Position = UDim2.new(0.05, 0, 0.45, 0)
-button.BackgroundColor3 = Color3.fromRGB(220, 53, 69) -- สีแดง
-button.Text = "Auto Collect: OFF"
-button.TextColor3 = Color3.fromRGB(255, 255, 255)
-button.Font = Enum.Font.GothamBold
-button.TextSize = 14
-button.Active = true
-button.Draggable = true
-button.Parent = screenGui
+-- 1. สร้างหน้าต่างหลัก (Main Frame)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 200, 0, 130)
+mainFrame.Position = UDim2.new(0.05, 0, 0.4, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 8)
-corner.Parent = button
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 8)
+frameCorner.Parent = mainFrame
 
--- ลูปการทำงานเบื้องหลัง
+-- หัวข้อหน้าต่าง (Title)
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Size = UDim2.new(1, -40, 0, 35)
+titleLabel.Position = UDim2.new(0, 12, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Anime Dice Hub"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 13
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = mainFrame
+
+-- ปุ่มปิดหน้าต่าง [X]
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.new(0, 26, 0, 26)
+closeButton.Position = UDim2.new(1, -30, 0, 5)
+closeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(220, 220, 220)
+closeButton.Font = Enum.Font.GothamBold
+closeButton.TextSize = 12
+closeButton.Parent = mainFrame
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 6)
+closeCorner.Parent = closeButton
+
+-- ปุ่มเปิด/ปิดการทำงาน Auto Collect (1-8)
+local toggleButton = Instance.new("TextButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Size = UDim2.new(1, -24, 0, 45)
+toggleButton.Position = UDim2.new(0, 12, 0, 50)
+toggleButton.BackgroundColor3 = Color3.fromRGB(220, 53, 69) -- สีแดง
+toggleButton.Text = "Auto Collect: OFF"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.TextSize = 13
+toggleButton.Parent = mainFrame
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 8)
+toggleCorner.Parent = toggleButton
+
+-- 2. สร้างปุ่มลอยสำหรับเปิด UI คืนมา [Open]
+local openButton = Instance.new("TextButton")
+openButton.Name = "OpenButton"
+openButton.Size = UDim2.new(0, 60, 0, 32)
+openButton.Position = UDim2.new(0.05, 0, 0.4, 0)
+openButton.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+openButton.Text = "Open"
+openButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+openButton.Font = Enum.Font.GothamBold
+openButton.TextSize = 13
+openButton.Visible = false
+openButton.Active = true
+openButton.Draggable = true
+openButton.Parent = screenGui
+
+local openCorner = Instance.new("UICorner")
+openCorner.CornerRadius = UDim.new(0, 8)
+openCorner.Parent = openButton
+
+-- ลูปการทำงาน: เก็บเงิน Plot 1 ถึง 8
 local function startLoop()
     while isRunning do
-        pcall(function()
-            collectRemote:FireServer(1)
-        end)
-        task.wait(0.5) -- หน่วงเวลา 0.5 วินาที
+        for plotIndex = 1, 16 do
+            if not isRunning then break end
+            pcall(function()
+                collectRemote:FireServer(plotIndex)
+            end)
+            task.wait(0.05)
+        end
+        task.wait(0.5)
     end
 end
 
--- ดักจับการกดปุ่ม
-button.MouseButton1Click:Connect(function()
+-- สลับสถานะเปิด-ปิดระบบฟาร์ม
+toggleButton.MouseButton1Click:Connect(function()
     isRunning = not isRunning
 
     if isRunning then
-        button.Text = "Auto Collect: ON"
-        button.BackgroundColor3 = Color3.fromRGB(40, 167, 69) -- สีเขียว
+        toggleButton.Text = "Auto Collect: ON"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(40, 167, 69) -- สีเขียว
         task.spawn(startLoop)
     else
-        button.Text = "Auto Collect: OFF"
-        button.BackgroundColor3 = Color3.fromRGB(220, 53, 69) -- สีแดง
+        toggleButton.Text = "Auto Collect: OFF"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(220, 53, 69) -- สีแดง
     end
+end)
+
+-- กดปุ่ม X เพื่อซ่อนหน้าต่าง และแสดงปุ่ม Open
+closeButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+    openButton.Visible = true
+end)
+
+-- กดปุ่ม Open เพื่อเรียกหน้าต่างกลับมา
+openButton.MouseButton1Click:Connect(function()
+    openButton.Visible = false
+    mainFrame.Visible = true
 end)
