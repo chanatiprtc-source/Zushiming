@@ -33,7 +33,7 @@ end
 -- 1. สร้างหน้าต่างหลัก (Main Frame)
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 200, 0, 130)
+mainFrame.Size = UDim2.new(0, 200, 0, 180)
 mainFrame.Position = UDim2.new(0.05, 0, 0.4, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
@@ -51,7 +51,7 @@ titleLabel.Name = "TitleLabel"
 titleLabel.Size = UDim2.new(1, -40, 0, 35)
 titleLabel.Position = UDim2.new(0, 12, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "Anime Dice Hub"
+titleLabel.Text = "Zushiming/Anime Dice Hub"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.Font = Enum.Font.GothamBold
 titleLabel.TextSize = 13
@@ -112,7 +112,7 @@ openCorner.Parent = openButton
 -- ลูปการทำงาน: เก็บเงิน Plot 1 ถึง 8
 local function startLoop()
     while isRunning do
-        for plotIndex = 1, 16 do
+        for plotIndex = 1, 18 do
             if not isRunning then break end
             pcall(function()
                 collectRemote:FireServer(plotIndex)
