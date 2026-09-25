@@ -1,0 +1,143 @@
+-- ==========================================
+--  ANIME DICE AUTOMATION SCRIPT TEMPLATE
+-- ==========================================
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+
+-- อ้างอิงจุดเก็บ Remote (ปรับชื่อตามจริงในเกม เช่น Events, Remotes หรือ Packages)
+local Remotes = ReplicatedStorage:WaitForChild("Remotes", 5) or ReplicatedStorage
+
+-- ================= CONFIGURATION =================
+local Settings = {
+    -- 1. เก็บเงินอัตโนมัติ
+    AutoCollectCoins = true,
+    
+    -- 2. สุ่มตัวอัตโนมัติ
+    AutoRoll = true,
+    DiceName = "NormalDice", -- ชนิดลูกเต๋าหรือกล่องที่ต้องการสุ่ม
+    
+    -- 2.1 เลือกตัวที่จะขายอัตโนมัติ (ใส่ชื่อตัวละครหรือ Rarity ที่ต้องการลบ/ขาย)
+    AutoSell = true,
+    SellList = {
+        ["Common"] = true,
+        ["Uncommon"] = true,
+        ["Rare"] = false, -- ไม่ขายตัว Rare
+    },
+    
+    -- 3 & 3.1 อัพเลเวลตัวละครอัตโนมัติ (กำหนดเลเวลเป้าหมาย 1 - 60)
+    AutoUpgrade = true,
+    TargetLevel = 60, -- เลเวลเป้าหมาย (ตั้งแต่ 1 ถึง 60)
+    
+    -- 4. Rebirth อัตโนมัติ
+    AutoRebirth = true,
+    
+    -- 5. สวมใส่/วางตัวที่ดีที่สุดอัตโนมัติ
+    AutoEquipBest = true,
+}
+
+-- ================= FUNCTIONS =================
+
+-- 1. ลูปเก็บเงิน (ทั้งแบบยิง Remote และแบบเดินเก็บ Drops)
+task.spawn(function()
+    while task.wait(0.5) do
+        if Settings.AutoCollectCoins then
+            pcall(function()
+                -- แบบที่ 1: เรียกผ่าน Remote (ถ้ามี)
+                if Remotes:FindFirstChild("CollectCoin") then
+                    Remotes.CollectCoin:FireServer()
+                end
+
+                -- แบบที่ 2: วิ่งเก็บเหรียญที่ตกบนพื้นใน Workspace
+                local dropsFolder = workspace:FindFirstChild("Drops") or workspace:FindFirstChild("Coins")
+                if dropsFolder and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    for _, drop in ipairs(dropsFolder:GetChildren()) do
+                        if drop:IsA("BasePart") then
+                            firetouchinterest(LocalPlayer.Character.HumanoidRootPart, drop, 0)
+                            firetouchinterest(LocalPlayer.Character.HumanoidRootPart, drop, 1)
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- 2 & 2.1 สุ่มเต๋า และ จัดการขายตัวอัตโนมัติ
+task.spawn(function()
+    while task.wait(0.2) do
+        if Settings.AutoRoll then
+            pcall(function()
+                -- ยิง Remote สำหรับทอยลูกเต๋า
+                if Remotes:FindFirstChild("RollDice") then
+                    Remotes.RollDice:FireServer(Settings.DiceName)
+                end
+            end)
+        end
+
+        if Settings.AutoSell then
+            pcall(function()
+                -- ค้นหาตัวละครในกระเป๋า (Inventory)
+                local inventory = LocalPlayer:FindFirstChild("Inventory") or LocalPlayer:FindFirstChild("Units")
+                if inventory and Remotes:FindFirstChild("SellUnit") then
+                    for _, unit in ipairs(inventory:GetChildren()) do
+                        local rarity = unit:FindFirstChild("Rarity") and unit.Rarity.Value or unit.Name
+                        if Settings.SellList[rarity] then
+                            Remotes.SellUnit:FireServer(unit)
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- 3 & 3.1 อัพเลเวลตัวละคร (1 - 60)
+task.spawn(function()
+    while task.wait(1) do
+        if Settings.AutoUpgrade then
+            pcall(function()
+                local unitsFolder = LocalPlayer:FindFirstChild("EquippedUnits") or LocalPlayer:FindFirstChild("Inventory")
+                if unitsFolder and Remotes:FindFirstChild("UpgradeUnit") then
+                    for _, unit in ipairs(unitsFolder:GetChildren()) do
+                        local currentLevel = unit:FindFirstChild("Level") and unit.Level.Value or 1
+                        
+                        -- ตรวจสอบว่าเลเวลยังไม่ถึงเป้าหมาย (1-60)
+                        if currentLevel < Settings.TargetLevel and Settings.TargetLevel <= 60 then
+                            Remotes.UpgradeUnit:FireServer(unit)
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- 4. Rebirth อัตโนมัติ
+task.spawn(function()
+    while task.wait(2) do
+        if Settings.AutoRebirth then
+            pcall(function()
+                if Remotes:FindFirstChild("Rebirth") then
+                    Remotes.Rebirth:FireServer()
+                elseif Remotes:FindFirstChild("DoRebirth") then
+                    Remotes.DoRebirth:FireServer()
+                end
+            end)
+        end
+    end
+end)
+
+-- 5. สวมใส่ตัวที่ดีที่สุดอัตโนมัติ (Equip Best)
+task.spawn(function()
+    while task.wait(3) do
+        if Settings.AutoEquipBest then
+            pcall(function()
+                if Remotes:FindFirstChild("EquipBest") then
+                    Remotes.EquipBest:FireServer()
+                end
+            end)
+        end
+    end
+end)
